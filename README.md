@@ -46,13 +46,13 @@ NovaMind is a locally hosted AI-powered chatbot assistant built using **Python, 
   ollama pull gemma3:4b
   
 Install Required Python Packages
-pip install flask flask-cors PyPDF2 python-docx requests
-Run Ollama (if not already running)
-ollama serve
+-pip install flask flask-cors PyPDF2 python-docx requests
+-Run Ollama (if not already running)
+-ollama serve
 
 Start the Flask Application
-python app.py
-Then, open your browser and visit http://localhost:5000/ to start chatting with NovaMind.
+-python app.py
+-Then, open your browser and visit http://localhost:5000/ to start chatting with NovaMind.
 
 ## 🔮 Future Scope
 Add persistent memory using vector databases like ChromaDB
