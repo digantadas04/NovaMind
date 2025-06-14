@@ -63,10 +63,10 @@ Implement task management and system control features
 
 Multi-modal capabilities and broader file format support
 
-##📜 License
+## 📜 License
 For personal, educational, and non-commercial use only.
 
-##🙏 Acknowledgements
+## 🙏 Acknowledgements
 Ollama AI Platform
 
 Google Gemma Model
