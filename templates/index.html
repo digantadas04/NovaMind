@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NovaMind</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- Nickname Modal -->
+  <div id="nickname-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h2>Welcome to NovaMind! 🌟</h2>
+      <p>What shall I call you?</p>
+      <input type="text" id="nickname-input" class="modal-input" placeholder="Enter your name..." maxlength="20" />
+      <br>
+      <div class="modal-buttons">
+        <button onclick="setNickname()" class="modal-button primary">Let's Chat!</button>
+        <button onclick="skipNickname()" class="modal-button secondary">Skip</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-container" id="chat-container">
+    <div class="chat-header">
+      <span>NovaMind</span>
+      <div class="header-buttons">
+        <span id="message-counter" class="message-counter">Messages: 0</span>
+        <label class="theme-toggle">
+          <input type="checkbox" id="mode-toggle" onchange="toggleTheme()" />
+          <span class="slider">
+            <span class="emoji">🌙</span>
+          </span>
+        </label>
+        <button id="clear-chat" onclick="clearChat()">🗑 Clear</button>
+      </div>
+    </div>
+
+    <div class="chat-window" id="chat-window">
+      <div class="welcome-message">
+        <div class="message bot">
+          <strong>NovaMind</strong> <span class="timestamp">(Welcome)</span>: 
+          <span id="welcome-text">Hello! I'm NovaMind, your AI assistant. I'll remember our conversation as we chat, so feel free to refer back to previous topics. How can I help you today?</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Ask me anything..." />
+      <button onclick="sendMessage()">➤</button>
+    </div>
+
+    <div class="chat-upload">
+      <label for="file-upload">Upload file (PDF, TXT, DOCX):</label>
+      <input type="file" id="file-upload" />
+      <button onclick="uploadFile()">Summarize</button>
+    </div>
+  </div>
+
+  <script>
+    let thinkingInterval;
+    let messageCount = 0;
+    let userName = '';
+
+    // Show nickname modal on page load
+    window.addEventListener('load', function() {
+      document.getElementById('nickname-modal').style.display = 'flex';
+      updateMessageCounter();
+    });
+
+    function setNickname() {
+      const nicknameInput = document.getElementById('nickname-input');
+      const nickname = nicknameInput.value.trim();
+      
+      if (!nickname) {
+        nicknameInput.focus();
+        nicknameInput.style.borderColor = '#ff4757';
+        setTimeout(() => {
+          nicknameInput.style.borderColor = '';
+        }, 2000);
+        return;
+      }
+      
+      userName = nickname;
+      closeModal();
+      updateWelcomeMessage();
+    }
+
+    function skipNickname() {
+      userName = '';
+      closeModal();
+      updateWelcomeMessage();
+    }
+
+    function closeModal() {
+      document.getElementById('nickname-modal').style.display = 'none';
+    }
+
+    function updateWelcomeMessage() {
+      const welcomeText = document.getElementById('welcome-text');
+      if (userName) {
+        welcomeText.textContent = `Hello ${userName}! I'm NovaMind, your AI assistant. I'll remember our conversation as we chat, so feel free to refer back to previous topics. How can I help you today?`;
+      } else {
+        welcomeText.textContent = `Hello! I'm NovaMind, your AI assistant. I'll remember our conversation as we chat, so feel free to refer back to previous topics. How can I help you today?`;
+      }
+    }
+
+    // Handle Enter key in nickname input
+    document.getElementById('nickname-input').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setNickname();
+      }
+    });
+
+    // Update message counter
+    function updateMessageCounter() {
+      fetch('/get-conversation-stats')
+        .then(response => response.json())
+        .then(data => {
+          messageCount = data.message_count;
+          document.getElementById('message-counter').textContent = `Messages: ${messageCount}`;
+        })
+        .catch(error => {
+          console.log('Could not fetch conversation stats:', error);
+        });
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("user-input");
+      const message = input.value.trim();
+      if (!message) return;
+
+      const displayName = userName || "User";
+      appendMessage(displayName, message);
+      input.value = "";
+
+      appendThinkingIndicator();
+
+      try {
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+
+        const data = await response.json();
+        removeThinkingIndicator();
+        appendMessage("NovaMind", data.response);
+        
+        // Update message counter after successful response
+        updateMessageCounter();
+      } catch (error) {
+        removeThinkingIndicator();
+        appendMessage("NovaMind", `Error: ${error.message}`);
+      }
+    }
+
+    function appendMessage(sender, message) {
+      const chatWindow = document.getElementById("chat-window");
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message ${sender === "NovaMind" ? "bot" : "user"}`;
+
+      const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      msgDiv.innerHTML = `<strong>${sender}</strong> <span class="timestamp">(${timestamp})</span>: ${message}`;
+      chatWindow.appendChild(msgDiv);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    function appendThinkingIndicator() {
+      const chatWindow = document.getElementById("chat-window");
+      const div = document.createElement("div");
+      div.className = "message bot";
+      div.id = "thinking-indicator";
+      div.innerHTML = `<strong>NovaMind:</strong> <span id="thinking-dots">Thinking</span>`;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+
+      let dotCount = 0;
+      thinkingInterval = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        const dots = ".".repeat(dotCount);
+        document.getElementById("thinking-dots").textContent = `Thinking${dots}`;
+      }, 500);
+    }
+
+    function removeThinkingIndicator() {
+      clearInterval(thinkingInterval);
+      const div = document.getElementById("thinking-indicator");
+      if (div) div.remove();
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("file-upload");
+      const file = fileInput.files[0];
+      if (!file) return alert("Please select a file");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      appendProcessingIndicator();
+
+      try {
+        const response = await fetch("/summarize", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await response.json();
+        removeProcessingIndicator();
+
+        if (data.summary) {
+          appendMessage("NovaMind", data.summary);
+          // Update message counter after file processing
+          updateMessageCounter();
+        } else {
+          appendMessage("NovaMind", `Error: ${data.error || "Failed to get summary"}`);
+        }
+      } catch (error) {
+        removeProcessingIndicator();
+        appendMessage("NovaMind", `Error: ${error.message}`);
+      }
+    }
+
+    function appendProcessingIndicator() {
+      const chatWindow = document.getElementById("chat-window");
+      const div = document.createElement("div");
+      div.className = "message bot";
+      div.id = "processing-indicator";
+      div.innerHTML = `<strong>NovaMind:</strong> <span id="processing-dots">Processing summary</span>`;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+
+      let dotCount = 0;
+      thinkingInterval = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        const dots = ".".repeat(dotCount);
+        document.getElementById("processing-dots").textContent = `Processing summary${dots}`;
+      }, 500);
+    }
+
+    function removeProcessingIndicator() {
+      clearInterval(thinkingInterval);
+      const div = document.getElementById("processing-indicator");
+      if (div) div.remove();
+    }
+
+    async function clearChat() {
+      // Clear the UI
+      const chatWindow = document.getElementById("chat-window");
+      const welcomeMessage = userName ? 
+        `Hello ${userName}! I'm NovaMind, your AI assistant. I'll remember our conversation as we chat, so feel free to refer back to previous topics. How can I help you today?` :
+        `Hello! I'm NovaMind, your AI assistant. I'll remember our conversation as we chat, so feel free to refer back to previous topics. How can I help you today?`;
+      
+      chatWindow.innerHTML = `
+        <div class="welcome-message">
+          <div class="message bot">
+            <strong>NovaMind</strong> <span class="timestamp">(Welcome)</span>: 
+            <span id="welcome-text">${welcomeMessage}</span>
+          </div>
+        </div>
+      `;
+      
+      // Clear the conversation memory on the server
+      try {
+        await fetch("/clear-conversation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        
+        // Reset message counter
+        messageCount = 0;
+        updateMessageCounter();
+        
+        console.log("Conversation memory cleared successfully");
+      } catch (error) {
+        console.error("Error clearing conversation memory:", error);
+      }
+    }
+
+    function toggleTheme() {
+      const container = document.querySelector(".chat-container");
+      const emoji = document.querySelector(".theme-toggle .emoji");
+      
+      container.classList.toggle("light-mode");
+      emoji.textContent = container.classList.contains("light-mode") ? "🌞" : "🌙";
+    }
+
+    document.getElementById("user-input").addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Show typing indicator when user is typing
+    let typingTimer;
+    document.getElementById("user-input").addEventListener("input", function() {
+      clearTimeout(typingTimer);
+      // You could add a typing indicator here if desired
+      
+      typingTimer = setTimeout(function() {
+        // User stopped typing
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
