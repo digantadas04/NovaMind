@@ -54,7 +54,7 @@ Start the Flask Application
 python app.py
 Then, open your browser and visit http://localhost:5000/ to start chatting with NovaMind.
 
-##🔮 Future Scope
+## 🔮 Future Scope
 Add persistent memory using vector databases like ChromaDB
 
 Integrate speech recognition and text-to-speech
